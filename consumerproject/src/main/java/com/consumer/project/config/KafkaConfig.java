@@ -10,6 +10,8 @@ import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.KafkaHeaders;
 import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.messaging.handler.annotation.Payload;
+import org.springframework.scheduling.annotation.Scheduled;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -45,31 +47,43 @@ public class KafkaConfig {
             System.out.println("Partition " + partition + " | Received: " + message);
 
             if (buffer.size() >= BATCH_SIZE) {
-                List<Patient> batch;
-                synchronized (buffer) {
-                    batch = new ArrayList<>(buffer.subList(0, BATCH_SIZE));
-                    buffer.subList(0, BATCH_SIZE).clear();
-                }
-
-                executor.submit(() -> {
-                    repository.saveAll(batch);
-                    System.out.println("Batch saved: " + batch.size());
-                });
+                flushBuffer("Auto Flush (batch size reached)");
             }
 
         } catch (Exception e) {
+            System.err.println("Failed to process message: " + message);
             e.printStackTrace();
         }
     }
 
+    @Scheduled(cron = "0 */1 * * * *") // Every 1 minutes at 0th second
+    public void flushBufferEveryFiveMinutes() {
+        flushBuffer("Cron Flush (every 5 minutes)");
+    }
+
     @PreDestroy
     public void flushOnShutdown() {
+        flushBuffer("Shutdown Flush");
+        executor.shutdown();
+    }
+
+    private void flushBuffer(String reason) {
         if (!buffer.isEmpty()) {
+            List<Patient> batch;
+            synchronized (buffer) {
+                batch = new ArrayList<>(buffer);
+                buffer.clear();
+            }
+
             executor.submit(() -> {
-                repository.saveAll(new ArrayList<>(buffer));
-                System.out.println("Flushed remaining: " + buffer.size());
+                try {
+                    repository.saveAll(batch);
+                    System.out.println(reason + ": Saved " + batch.size() + " records");
+                } catch (Exception e) {
+                    System.err.println(reason + ": Error saving batch");
+                    e.printStackTrace();
+                }
             });
         }
-        executor.shutdown();
     }
 }
