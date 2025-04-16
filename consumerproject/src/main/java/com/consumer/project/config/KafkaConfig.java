@@ -36,8 +36,14 @@ public class KafkaConfig {
                                @Header(KafkaHeaders.RECEIVED_PARTITION) int partition) {
         try {
             String[] parts = message.split(",");
-            String name = parts[0];
-            String roll = parts[1];
+
+            if (parts.length < 2 || parts[0].isBlank() || parts[1].isBlank()) {
+                System.err.println("Skipped invalid message: " + message);
+                return;
+            }
+
+            String name = parts[0].trim();
+            String roll = parts[1].trim();
 
             Patient patient = new Patient();
             patient.setName(name);
