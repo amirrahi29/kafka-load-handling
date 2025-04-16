@@ -16,11 +16,17 @@ public class KafkaService {
     private Logger logger = LoggerFactory.getLogger(KafkaService.class);
 
     public boolean updatePatient(String name) {
-        for (int i = 0; i <= 10000; i++) {
+        int numPartitions = 16;
+        for (int i = 0; i <= 100000; i++) {  // ✅ 50 lakh messages
             String message = name + "," + i;
-            kafkaTemplate.send(AppConstants.PATIENT_TOPIC_NAME, message);
-            logger.info("Message produced: {}", message);
-        }        
+            int partition = i % numPartitions;
+            kafkaTemplate.send(AppConstants.PATIENT_TOPIC_NAME, partition, null, message);
+            logger.info("Sent to partition {}: {}", partition, message);
+
+            if (i % 500 == 0) {
+                try { Thread.sleep(100); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+            }
+        }
         return true;
     }
 
