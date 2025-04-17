@@ -19,9 +19,15 @@ public class PatientController {
     private KafkaService kafkaService;
     
     @GetMapping("/update_any_name/{name}")
-    public ResponseEntity<?> updateLocation(@PathVariable String name){
+    public ResponseEntity<?> updateName(@PathVariable String name){
         System.out.println("message produce: "+name);
         this.kafkaService.updatePatient(name);
+        return new ResponseEntity<>(Map.of("message","pateient updated"),HttpStatus.OK);
+    }
+
+    @GetMapping("/update_any_csv")
+    public ResponseEntity<?> updateCSV(){
+        this.kafkaService.updatePatientFromCsv();
         return new ResponseEntity<>(Map.of("message","pateient updated"),HttpStatus.OK);
     }
 
